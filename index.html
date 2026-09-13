@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VK AI Manager</title>
+
+  <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
+
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+      margin: 0;
+      padding: 24px;
+      background: #f2f3f5;
+      color: #111;
+    }
+
+    .card {
+      max-width: 600px;
+      margin: auto;
+      background: white;
+      padding: 22px;
+      border-radius: 16px;
+    }
+
+    h1 {
+      margin-top: 0;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 220px;
+      box-sizing: border-box;
+      padding: 14px;
+      font-size: 16px;
+      border-radius: 12px;
+      border: 1px solid #ccc;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 15px;
+      padding: 15px;
+      border: 0;
+      border-radius: 12px;
+      font-size: 17px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    #publish {
+      background: #447bba;
+      color: white;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="card">
+
+    <h1>VK AI Manager</h1>
+
+    <p>
+      Проверь подготовленный пост.
+      Публикация произойдёт только после
+      твоего подтверждения в VK.
+    </p>
+
+    <textarea
+      id="postText"
+      placeholder="Здесь появится текст поста..."
+    ></textarea>
+
+    <button id="publish">
+      Опубликовать на моей странице VK
+    </button>
+
+    <div id="status"></div>
+
+  </div>
+
+  <script>
+    const bridge = window.vkBridge;
+
+    bridge.send("VKWebAppInit");
+
+    const params = new URLSearchParams(window.location.search);
+
+    const incomingText = params.get("text");
+
+    if (incomingText) {
+      document.getElementById("postText").value = incomingText;
+    }
+
+    document.getElementById("publish").onclick = async function () {
+
+      const text = document.getElementById("postText").value.trim();
+      const status = document.getElementById("status");
+
+      if (!text) {
+        status.textContent = "Сначала нужен текст поста.";
+        return;
+      }
+
+      try {
+
+        status.textContent = "Открываю окно публикации VK...";
+
+        const result = await bridge.send(
+          "VKWebAppShowWallPostBox",
+          {
+            message: text
+          }
+        );
+
+        if (result && result.post_id) {
+          status.textContent =
+            "Готово! Пост опубликован. ID: " + result.post_id;
+        } else {
+          status.textContent =
+            "Окно публикации закрыто.";
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        status.textContent =
+          "VK не разрешил публикацию или окно было закрыто.";
+      }
+    };
+  </script>
+
+</body>
+</html>
