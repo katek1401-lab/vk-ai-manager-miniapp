@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VK AI Manager — проверка</title>
+  <title>VK AI Manager</title>
 
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
@@ -24,6 +24,10 @@
       border-radius: 16px;
     }
 
+    h1 {
+      margin-top: 0;
+    }
+
     button {
       width: 100%;
       margin-top: 15px;
@@ -42,17 +46,18 @@
       background: #f2f3f5;
       border-radius: 12px;
       white-space: pre-wrap;
+      line-height: 1.4;
     }
   </style>
 </head>
 
 <body>
   <div class="card">
-    <h1>Проверка VK</h1>
+    <h1>VK AI Manager</h1>
 
     <p>
-      Сейчас ничего публиковаться не будет.
-      Мы только проверим, доступно ли окно публикации на этом устройстве.
+      Проверяем связь с VK.
+      Ничего публиковаться не будет.
     </p>
 
     <button id="check">
@@ -60,42 +65,116 @@
     </button>
 
     <div id="status">
-      Нажми кнопку проверки.
+      Подготовка...
     </div>
   </div>
 
   <script>
     const bridge = window.vkBridge;
     const status = document.getElementById("status");
+    const checkButton = document.getElementById("check");
+
+    function timeout(ms) {
+      return new Promise((_, reject) => {
+        setTimeout(() => {
+          reject(new Error("TIMEOUT"));
+        }, ms);
+      });
+    }
+
+    async function withTimeout(promise, ms) {
+      return Promise.race([
+        promise,
+        timeout(ms)
+      ]);
+    }
+
+    function getPlatformInfo() {
+      let platform = "неизвестно";
+
+      const ua = navigator.userAgent || "";
+
+      if (/android/i.test(ua)) {
+        platform = "Android";
+      } else if (/iphone|ipad|ipod/i.test(ua)) {
+        platform = "iPhone / iOS";
+      }
+
+      return platform;
+    }
 
     async function init() {
+      if (!bridge) {
+        status.textContent =
+          "❌ VK Bridge не загрузился.";
+        return;
+      }
+
+      const platform = getPlatformInfo();
+
+      status.textContent =
+        "Устройство: " + platform + "\nПроверяю связь с VK...";
+
       try {
-        await bridge.send("VKWebAppInit");
-        status.textContent = "VK Mini App запущено. Можно проверять.";
+        await withTimeout(
+          bridge.send("VKWebAppInit"),
+          5000
+        );
+
+        status.textContent =
+          "✅ Связь с VK есть.\n" +
+          "Устройство: " + platform + "\n" +
+          "Можно нажать «Проверить публикацию».";
+
       } catch (error) {
-        status.textContent = "Ошибка запуска VK Mini App.";
+        if (error.message === "TIMEOUT") {
+          status.textContent =
+            "⚠️ VK не ответил на запуск приложения за 5 секунд.\n" +
+            "Устройство: " + platform;
+        } else {
+          status.textContent =
+            "⚠️ Ошибка запуска VK Mini App.\n" +
+            String(error);
+        }
       }
     }
 
-    document.getElementById("check").onclick = async function () {
-      status.textContent = "Проверяю...";
+    checkButton.onclick = async function () {
+      const platform = getPlatformInfo();
+
+      status.textContent =
+        "Проверяю поддержку публикации...\n" +
+        "Устройство: " + platform;
 
       try {
-        const supported = await bridge.supportsAsync(
-          "VKWebAppShowWallPostBox"
+        const supported = await withTimeout(
+          bridge.supportsAsync("VKWebAppShowWallPostBox"),
+          5000
         );
 
         if (supported) {
           status.textContent =
-            "✅ Метод публикации поддерживается на этом устройстве.";
+            "✅ Публикация поддерживается.\n" +
+            "Устройство: " + platform + "\n\n" +
+            "Пока ничего не опубликовано.";
         } else {
           status.textContent =
-            "❌ Метод публикации НЕ поддерживается на этом устройстве.";
+            "❌ Публикация через VK Bridge не поддерживается.\n" +
+            "Устройство: " + platform;
         }
+
       } catch (error) {
-        status.textContent =
-          "⚠️ Не удалось выполнить проверку.\n" +
-          String(error);
+        if (error.message === "TIMEOUT") {
+          status.textContent =
+            "⚠️ VK не ответил на проверку за 5 секунд.\n" +
+            "Устройство: " + platform + "\n\n" +
+            "Приложение больше не будет висеть бесконечно.";
+        } else {
+          status.textContent =
+            "⚠️ Ошибка проверки.\n" +
+            "Устройство: " + platform + "\n\n" +
+            String(error);
+        }
       }
     };
 
