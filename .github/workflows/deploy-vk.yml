@@ -17,7 +17,7 @@ jobs:
           node-version: 20
 
       - name: Загрузить приложение на VK Hosting
-        run: printf 'y\n' | npm exec --yes --package=@vkontakte/vk-miniapps-deploy@latest -- vk-miniapps-deploy
+        run: printf 'y\ny\n' | npm exec --yes --package=@vkontakte/vk-miniapps-deploy@latest -- vk-miniapps-deploy
         env:
           MINI_APPS_ACCESS_TOKEN: ${{ secrets.VK_MINI_APPS_ACCESS_TOKEN }}
           MINI_APPS_ENVIRONMENT: production
