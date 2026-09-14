@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VK AI Manager</title>
+  <title>VK AI Manager — проверка</title>
 
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
@@ -24,20 +24,6 @@
       border-radius: 16px;
     }
 
-    h1 {
-      margin-top: 0;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 220px;
-      box-sizing: border-box;
-      padding: 14px;
-      font-size: 16px;
-      border-radius: 12px;
-      border: 1px solid #ccc;
-    }
-
     button {
       width: 100%;
       margin-top: 15px;
@@ -46,97 +32,74 @@
       border-radius: 12px;
       font-size: 17px;
       font-weight: 600;
-      cursor: pointer;
-    }
-
-    #publish {
       background: #447bba;
       color: white;
     }
 
     #status {
-      margin-top: 15px;
-      font-size: 14px;
+      margin-top: 18px;
+      padding: 14px;
+      background: #f2f3f5;
+      border-radius: 12px;
+      white-space: pre-wrap;
     }
   </style>
 </head>
 
 <body>
-
   <div class="card">
-
-    <h1>VK AI Manager</h1>
+    <h1>Проверка VK</h1>
 
     <p>
-      Проверь подготовленный пост.
-      Публикация произойдёт только после
-      твоего подтверждения в VK.
+      Сейчас ничего публиковаться не будет.
+      Мы только проверим, доступно ли окно публикации на этом устройстве.
     </p>
 
-    <textarea
-      id="postText"
-      placeholder="Здесь появится текст поста..."
-    ></textarea>
-
-    <button id="publish">
-      Опубликовать на моей странице VK
+    <button id="check">
+      Проверить публикацию
     </button>
 
-    <div id="status"></div>
-
+    <div id="status">
+      Нажми кнопку проверки.
+    </div>
   </div>
 
   <script>
     const bridge = window.vkBridge;
+    const status = document.getElementById("status");
 
-    bridge.send("VKWebAppInit");
-
-    const params = new URLSearchParams(window.location.search);
-
-    const incomingText = params.get("text");
-
-    if (incomingText) {
-      document.getElementById("postText").value = incomingText;
+    async function init() {
+      try {
+        await bridge.send("VKWebAppInit");
+        status.textContent = "VK Mini App запущено. Можно проверять.";
+      } catch (error) {
+        status.textContent = "Ошибка запуска VK Mini App.";
+      }
     }
 
-    document.getElementById("publish").onclick = async function () {
-
-      const text = document.getElementById("postText").value.trim();
-      const status = document.getElementById("status");
-
-      if (!text) {
-        status.textContent = "Сначала нужен текст поста.";
-        return;
-      }
+    document.getElementById("check").onclick = async function () {
+      status.textContent = "Проверяю...";
 
       try {
-
-        status.textContent = "Открываю окно публикации VK...";
-
-        const result = await bridge.send(
-          "VKWebAppShowWallPostBox",
-          {
-            message: text
-          }
+        const supported = await bridge.supportsAsync(
+          "VKWebAppShowWallPostBox"
         );
 
-        if (result && result.post_id) {
+        if (supported) {
           status.textContent =
-            "Готово! Пост опубликован. ID: " + result.post_id;
+            "✅ Метод публикации поддерживается на этом устройстве.";
         } else {
           status.textContent =
-            "Окно публикации закрыто.";
+            "❌ Метод публикации НЕ поддерживается на этом устройстве.";
         }
-
       } catch (error) {
-
-        console.error(error);
-
         status.textContent =
-          "VK не разрешил публикацию или окно было закрыто.";
+          "⚠️ Не удалось выполнить проверку.\n" +
+          String(error);
       }
     };
-  </script>
 
+    init();
+  </script>
 </body>
 </html>
