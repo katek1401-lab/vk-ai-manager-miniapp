@@ -1,130 +1,87 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VK AI Manager — диагностика</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>VK AI Manager</title>
 
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
   <style>
     body {
-      font-family: -apple-system, BlinkMacSystemFont, sans-serif;
       margin: 0;
-      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f2f3f5;
       color: #111;
     }
 
+    .wrap {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+
     .card {
-      max-width: 600px;
-      margin: auto;
+      width: 100%;
+      max-width: 420px;
       background: white;
-      padding: 22px;
-      border-radius: 16px;
+      border-radius: 18px;
+      padding: 24px;
+      box-sizing: border-box;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
     }
 
     h1 {
-      margin-top: 0;
+      margin: 0 0 12px;
+      font-size: 28px;
+    }
+
+    p {
+      margin: 8px 0;
+      line-height: 1.45;
     }
 
     #status {
-      margin-top: 16px;
-      padding: 14px;
-      background: #f2f3f5;
-      border-radius: 12px;
-      white-space: pre-wrap;
-      line-height: 1.5;
-      word-break: break-word;
+      margin-top: 18px;
+      font-weight: 600;
     }
   </style>
 </head>
 
 <body>
-  <div class="card">
-    <h1>VK AI Manager</h1>
-
-    <p>
-      Диагностика запуска.
-      Ничего публиковаться не будет.
-    </p>
-
-    <div id="status">Проверяю...</div>
+  <div class="wrap">
+    <div class="card">
+      <h1>VK AI Manager</h1>
+      <p>Мини-приложение загружено.</p>
+      <p id="status">Запускаю VK Bridge…</p>
+    </div>
   </div>
 
   <script>
-    const status = document.getElementById("status");
-    const bridge = window.vkBridge;
+    async function startApp() {
+      const status = document.getElementById("status");
 
-    const params = new URLSearchParams(window.location.search);
+      try {
+        if (!window.vkBridge) {
+          status.textContent = "Ошибка: VK Bridge не загрузился";
+          return;
+        }
 
-    const vkAppId = params.get("vk_app_id");
-    const vkPlatform = params.get("vk_platform");
-    const vkUserId = params.get("vk_user_id");
-    const sign = params.get("sign");
+        await window.vkBridge.send("VKWebAppInit");
 
-    let isWebView = false;
-    let isIframe = false;
-    let isEmbedded = false;
-
-    try {
-      if (bridge) {
-        isWebView = bridge.isWebView();
-        isIframe = bridge.isIframe();
-        isEmbedded = bridge.isEmbedded();
+        status.textContent = "✅ VK AI Manager запущен";
+      } catch (error) {
+        status.textContent =
+          "Ошибка запуска VK Bridge: " +
+          (error && error.message ? error.message : String(error));
       }
-    } catch (e) {
-      // Просто продолжаем диагностику
     }
 
-    let device = "неизвестно";
-    const ua = navigator.userAgent || "";
-
-    if (/android/i.test(ua)) {
-      device = "Android";
-    } else if (/iphone|ipad|ipod/i.test(ua)) {
-      device = "iPhone / iOS";
-    }
-
-    let result = "";
-
-    result += "Устройство: " + device + "\n\n";
-
-    result += "VK Bridge загружен: " +
-      (bridge ? "✅ да" : "❌ нет") + "\n";
-
-    result += "VK WebView: " +
-      (isWebView ? "✅ да" : "❌ нет") + "\n";
-
-    result += "Встроено в VK: " +
-      (isEmbedded ? "✅ да" : "❌ нет") + "\n";
-
-    result += "Открыто во фрейме: " +
-      (isIframe ? "✅ да" : "❌ нет") + "\n\n";
-
-    result += "vk_app_id: " +
-      (vkAppId || "❌ нет") + "\n";
-
-    result += "vk_platform: " +
-      (vkPlatform || "❌ нет") + "\n";
-
-    result += "vk_user_id: " +
-      (vkUserId ? "✅ есть" : "❌ нет") + "\n";
-
-    result += "sign: " +
-      (sign ? "✅ есть" : "❌ нет") + "\n\n";
-
-    if (vkAppId && vkPlatform && sign) {
-      result +=
-        "✅ VK передал параметры Mini App.\n" +
-        "Запуск похож на правильный.";
-    } else {
-      result +=
-        "⚠️ Не хватает параметров Mini App.\n" +
-        "Похоже, страница открывается не так, как должна.";
-    }
-
-    status.textContent = result;
+    startApp();
   </script>
 </body>
 </html>
