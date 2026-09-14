@@ -10,7 +10,7 @@
   <style>
     body {
       margin: 0;
-      padding: 24px;
+      padding: 20px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       background: #f5f5f5;
       color: #111;
@@ -21,7 +21,7 @@
       margin: 0 auto;
       background: white;
       border-radius: 20px;
-      padding: 24px;
+      padding: 22px;
       box-sizing: border-box;
     }
 
@@ -42,7 +42,6 @@
       border-radius: 14px;
       font-size: 17px;
       font-weight: 600;
-      cursor: pointer;
       background: #2688eb;
       color: white;
       margin-top: 12px;
@@ -50,14 +49,22 @@
 
     button:disabled {
       opacity: 0.5;
-      cursor: default;
     }
 
-    .note {
+    #errorBox {
+      display: none;
       margin-top: 18px;
-      font-size: 14px;
+      padding: 14px;
+      border-radius: 14px;
+      background: #f1f3f6;
+    }
+
+    #errorText {
+      white-space: pre-wrap;
+      word-break: break-word;
+      font-family: monospace;
+      font-size: 13px;
       line-height: 1.45;
-      color: #666;
     }
   </style>
 </head>
@@ -66,23 +73,43 @@
   <div class="card">
     <h1>VK AI Manager</h1>
 
-    <div id="status">
-      Запускаю VK Mini App…
-    </div>
+    <div id="status">Запускаю VK Mini App…</div>
 
     <button id="publishButton" disabled>
-      Тест публикации
+      Проверить публикацию
     </button>
 
-    <div class="note">
-      Кнопка только откроет стандартное окно публикации VK.
-      Ничего не будет опубликовано без вашего подтверждения.
+    <div id="errorBox">
+      <strong>Ответ VK:</strong>
+      <div id="errorText"></div>
     </div>
   </div>
 
   <script>
     const statusEl = document.getElementById("status");
     const publishButton = document.getElementById("publishButton");
+    const errorBox = document.getElementById("errorBox");
+    const errorText = document.getElementById("errorText");
+
+    function showError(error) {
+      let text;
+
+      try {
+        text = JSON.stringify(error, null, 2);
+      } catch (_) {
+        text = String(error);
+      }
+
+      if (!text || text === "{}") {
+        text =
+          "message: " + (error?.message || "нет") + "\n" +
+          "name: " + (error?.name || "нет") + "\n" +
+          "type: " + (error?.type || "нет");
+      }
+
+      errorText.textContent = text;
+      errorBox.style.display = "block";
+    }
 
     async function initApp() {
       try {
@@ -91,15 +118,15 @@
         statusEl.textContent = "✅ VK AI Manager запущен";
         publishButton.disabled = false;
       } catch (error) {
-        statusEl.textContent =
-          "❌ Ошибка запуска: " +
-          (error?.message || String(error));
+        statusEl.textContent = "❌ Ошибка запуска";
+        showError(error);
       }
     }
 
     async function testPublish() {
       publishButton.disabled = true;
-      statusEl.textContent = "Открываю окно публикации VK…";
+      errorBox.style.display = "none";
+      statusEl.textContent = "Проверяю публикацию…";
 
       try {
         const result = await window.vkBridge.send(
@@ -109,17 +136,19 @@
           }
         );
 
-        if (result && result.post_id) {
-          statusEl.textContent =
-            "✅ Тестовая запись опубликована. ID: " + result.post_id;
-        } else {
-          statusEl.textContent =
-            "Окно публикации закрыто.";
+        statusEl.textContent =
+          "✅ VK разрешил вызов окна публикации";
+
+        if (result) {
+          errorText.textContent =
+            JSON.stringify(result, null, 2);
+          errorBox.style.display = "block";
         }
+
       } catch (error) {
         statusEl.textContent =
-          "❌ Ошибка: " +
-          (error?.message || String(error));
+          "❌ VK вернул ошибку";
+        showError(error);
       } finally {
         publishButton.disabled = false;
       }
