@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>VK AI Manager</title>
 
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
@@ -10,78 +10,145 @@
   <style>
     body {
       margin: 0;
+      padding: 24px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f2f3f5;
+      background: #f5f5f5;
       color: #111;
     }
 
-    .wrap {
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      box-sizing: border-box;
-    }
-
     .card {
-      width: 100%;
-      max-width: 420px;
+      max-width: 520px;
+      margin: 0 auto;
       background: white;
-      border-radius: 18px;
+      border-radius: 20px;
       padding: 24px;
       box-sizing: border-box;
-      text-align: center;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.08);
     }
 
     h1 {
-      margin: 0 0 12px;
-      font-size: 28px;
-    }
-
-    p {
-      margin: 8px 0;
-      line-height: 1.45;
+      margin-top: 0;
+      font-size: 26px;
     }
 
     #status {
-      margin-top: 18px;
+      margin: 16px 0;
+      line-height: 1.5;
+    }
+
+    #user {
+      display: none;
+      margin-top: 20px;
+      padding: 16px;
+      background: #f1f3f6;
+      border-radius: 16px;
+    }
+
+    #avatar {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 12px;
+    }
+
+    button {
+      width: 100%;
+      min-height: 50px;
+      border: 0;
+      border-radius: 14px;
+      font-size: 17px;
       font-weight: 600;
+      cursor: pointer;
+      background: #2688eb;
+      color: white;
+      margin-top: 12px;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: default;
     }
   </style>
 </head>
 
 <body>
-  <div class="wrap">
-    <div class="card">
-      <h1>VK AI Manager</h1>
-      <p>Мини-приложение загружено.</p>
-      <p id="status">Запускаю VK Bridge…</p>
+  <div class="card">
+    <h1>VK AI Manager</h1>
+
+    <div id="status">
+      Запускаю VK Mini App…
     </div>
+
+    <div id="user">
+      <img id="avatar" alt="Фото профиля">
+
+      <div>
+        <strong id="name"></strong>
+      </div>
+
+      <div id="userid"></div>
+    </div>
+
+    <button id="userButton" disabled>
+      Получить данные профиля
+    </button>
   </div>
 
   <script>
-    async function startApp() {
-      const status = document.getElementById("status");
+    const statusEl = document.getElementById("status");
+    const userEl = document.getElementById("user");
+    const avatarEl = document.getElementById("avatar");
+    const nameEl = document.getElementById("name");
+    const userIdEl = document.getElementById("userid");
+    const userButton = document.getElementById("userButton");
 
+    async function initApp() {
       try {
-        if (!window.vkBridge) {
-          status.textContent = "Ошибка: VK Bridge не загрузился";
-          return;
-        }
-
         await window.vkBridge.send("VKWebAppInit");
 
-        status.textContent = "✅ VK AI Manager запущен";
+        statusEl.textContent = "✅ VK AI Manager запущен";
+        userButton.disabled = false;
       } catch (error) {
-        status.textContent =
-          "Ошибка запуска VK Bridge: " +
-          (error && error.message ? error.message : String(error));
+        statusEl.textContent =
+          "❌ Не удалось запустить VK Bridge: " +
+          (error?.message || String(error));
       }
     }
 
-    startApp();
+    async function getUser() {
+      userButton.disabled = true;
+      statusEl.textContent = "Получаю данные профиля…";
+
+      try {
+        const user = await window.vkBridge.send("VKWebAppGetUserInfo");
+
+        nameEl.textContent =
+          `${user.first_name || ""} ${user.last_name || ""}`.trim();
+
+        userIdEl.textContent =
+          user.id ? `VK ID: ${user.id}` : "";
+
+        if (user.photo_200) {
+          avatarEl.src = user.photo_200;
+          avatarEl.style.display = "block";
+        } else {
+          avatarEl.style.display = "none";
+        }
+
+        userEl.style.display = "block";
+        statusEl.textContent = "✅ Профиль получен";
+      } catch (error) {
+        statusEl.textContent =
+          "❌ Не удалось получить профиль: " +
+          (error?.message || String(error));
+      } finally {
+        userButton.disabled = false;
+      }
+    }
+
+    userButton.addEventListener("click", getUser);
+
+    initApp();
   </script>
 </body>
 </html>
