@@ -35,25 +35,9 @@
       line-height: 1.5;
     }
 
-    #user {
-      display: none;
-      margin-top: 20px;
-      padding: 16px;
-      background: #f1f3f6;
-      border-radius: 16px;
-    }
-
-    #avatar {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      object-fit: cover;
-      margin-bottom: 12px;
-    }
-
     button {
       width: 100%;
-      min-height: 50px;
+      min-height: 52px;
       border: 0;
       border-radius: 14px;
       font-size: 17px;
@@ -68,6 +52,13 @@
       opacity: 0.5;
       cursor: default;
     }
+
+    .note {
+      margin-top: 18px;
+      font-size: 14px;
+      line-height: 1.45;
+      color: #666;
+    }
   </style>
 </head>
 
@@ -79,74 +70,62 @@
       Запускаю VK Mini App…
     </div>
 
-    <div id="user">
-      <img id="avatar" alt="Фото профиля">
-
-      <div>
-        <strong id="name"></strong>
-      </div>
-
-      <div id="userid"></div>
-    </div>
-
-    <button id="userButton" disabled>
-      Получить данные профиля
+    <button id="publishButton" disabled>
+      Тест публикации
     </button>
+
+    <div class="note">
+      Кнопка только откроет стандартное окно публикации VK.
+      Ничего не будет опубликовано без вашего подтверждения.
+    </div>
   </div>
 
   <script>
     const statusEl = document.getElementById("status");
-    const userEl = document.getElementById("user");
-    const avatarEl = document.getElementById("avatar");
-    const nameEl = document.getElementById("name");
-    const userIdEl = document.getElementById("userid");
-    const userButton = document.getElementById("userButton");
+    const publishButton = document.getElementById("publishButton");
 
     async function initApp() {
       try {
         await window.vkBridge.send("VKWebAppInit");
 
         statusEl.textContent = "✅ VK AI Manager запущен";
-        userButton.disabled = false;
+        publishButton.disabled = false;
       } catch (error) {
         statusEl.textContent =
-          "❌ Не удалось запустить VK Bridge: " +
+          "❌ Ошибка запуска: " +
           (error?.message || String(error));
       }
     }
 
-    async function getUser() {
-      userButton.disabled = true;
-      statusEl.textContent = "Получаю данные профиля…";
+    async function testPublish() {
+      publishButton.disabled = true;
+      statusEl.textContent = "Открываю окно публикации VK…";
 
       try {
-        const user = await window.vkBridge.send("VKWebAppGetUserInfo");
+        const result = await window.vkBridge.send(
+          "VKWebAppShowWallPostBox",
+          {
+            message: "Тест VK AI Manager"
+          }
+        );
 
-        nameEl.textContent =
-          `${user.first_name || ""} ${user.last_name || ""}`.trim();
-
-        userIdEl.textContent =
-          user.id ? `VK ID: ${user.id}` : "";
-
-        if (user.photo_200) {
-          avatarEl.src = user.photo_200;
-          avatarEl.style.display = "block";
+        if (result && result.post_id) {
+          statusEl.textContent =
+            "✅ Тестовая запись опубликована. ID: " + result.post_id;
         } else {
-          avatarEl.style.display = "none";
+          statusEl.textContent =
+            "Окно публикации закрыто.";
         }
-
-        userEl.style.display = "block";
-        statusEl.textContent = "✅ Профиль получен";
       } catch (error) {
         statusEl.textContent =
-          "❌ Не удалось получить профиль: " +
+          "❌ Ошибка: " +
           (error?.message || String(error));
       } finally {
-        userButton.disabled = false;
+        publishButton.disabled = false;
       }
     }
 
-    userButton.addEventListener("click", getUser);
+    publishButton.addEventListener("click", testPublish);
 
     initApp();
   </script>
