@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>VK AI Manager</title>
+  <title>VK AI Manager — диагностика</title>
 
   <script src="https://unpkg.com/@vkontakte/vk-bridge/dist/browser.min.js"></script>
 
@@ -28,25 +28,14 @@
       margin-top: 0;
     }
 
-    button {
-      width: 100%;
-      margin-top: 15px;
-      padding: 15px;
-      border: 0;
-      border-radius: 12px;
-      font-size: 17px;
-      font-weight: 600;
-      background: #447bba;
-      color: white;
-    }
-
     #status {
-      margin-top: 18px;
+      margin-top: 16px;
       padding: 14px;
       background: #f2f3f5;
       border-radius: 12px;
       white-space: pre-wrap;
-      line-height: 1.4;
+      line-height: 1.5;
+      word-break: break-word;
     }
   </style>
 </head>
@@ -56,129 +45,86 @@
     <h1>VK AI Manager</h1>
 
     <p>
-      Проверяем связь с VK.
+      Диагностика запуска.
       Ничего публиковаться не будет.
     </p>
 
-    <button id="check">
-      Проверить публикацию
-    </button>
-
-    <div id="status">
-      Подготовка...
-    </div>
+    <div id="status">Проверяю...</div>
   </div>
 
   <script>
-    const bridge = window.vkBridge;
     const status = document.getElementById("status");
-    const checkButton = document.getElementById("check");
+    const bridge = window.vkBridge;
 
-    function timeout(ms) {
-      return new Promise((_, reject) => {
-        setTimeout(() => {
-          reject(new Error("TIMEOUT"));
-        }, ms);
-      });
+    const params = new URLSearchParams(window.location.search);
+
+    const vkAppId = params.get("vk_app_id");
+    const vkPlatform = params.get("vk_platform");
+    const vkUserId = params.get("vk_user_id");
+    const sign = params.get("sign");
+
+    let isWebView = false;
+    let isIframe = false;
+    let isEmbedded = false;
+
+    try {
+      if (bridge) {
+        isWebView = bridge.isWebView();
+        isIframe = bridge.isIframe();
+        isEmbedded = bridge.isEmbedded();
+      }
+    } catch (e) {
+      // Просто продолжаем диагностику
     }
 
-    async function withTimeout(promise, ms) {
-      return Promise.race([
-        promise,
-        timeout(ms)
-      ]);
+    let device = "неизвестно";
+    const ua = navigator.userAgent || "";
+
+    if (/android/i.test(ua)) {
+      device = "Android";
+    } else if (/iphone|ipad|ipod/i.test(ua)) {
+      device = "iPhone / iOS";
     }
 
-    function getPlatformInfo() {
-      let platform = "неизвестно";
+    let result = "";
 
-      const ua = navigator.userAgent || "";
+    result += "Устройство: " + device + "\n\n";
 
-      if (/android/i.test(ua)) {
-        platform = "Android";
-      } else if (/iphone|ipad|ipod/i.test(ua)) {
-        platform = "iPhone / iOS";
-      }
+    result += "VK Bridge загружен: " +
+      (bridge ? "✅ да" : "❌ нет") + "\n";
 
-      return platform;
+    result += "VK WebView: " +
+      (isWebView ? "✅ да" : "❌ нет") + "\n";
+
+    result += "Встроено в VK: " +
+      (isEmbedded ? "✅ да" : "❌ нет") + "\n";
+
+    result += "Открыто во фрейме: " +
+      (isIframe ? "✅ да" : "❌ нет") + "\n\n";
+
+    result += "vk_app_id: " +
+      (vkAppId || "❌ нет") + "\n";
+
+    result += "vk_platform: " +
+      (vkPlatform || "❌ нет") + "\n";
+
+    result += "vk_user_id: " +
+      (vkUserId ? "✅ есть" : "❌ нет") + "\n";
+
+    result += "sign: " +
+      (sign ? "✅ есть" : "❌ нет") + "\n\n";
+
+    if (vkAppId && vkPlatform && sign) {
+      result +=
+        "✅ VK передал параметры Mini App.\n" +
+        "Запуск похож на правильный.";
+    } else {
+      result +=
+        "⚠️ Не хватает параметров Mini App.\n" +
+        "Похоже, страница открывается не так, как должна.";
     }
 
-    async function init() {
-      if (!bridge) {
-        status.textContent =
-          "❌ VK Bridge не загрузился.";
-        return;
-      }
-
-      const platform = getPlatformInfo();
-
-      status.textContent =
-        "Устройство: " + platform + "\nПроверяю связь с VK...";
-
-      try {
-        await withTimeout(
-          bridge.send("VKWebAppInit"),
-          5000
-        );
-
-        status.textContent =
-          "✅ Связь с VK есть.\n" +
-          "Устройство: " + platform + "\n" +
-          "Можно нажать «Проверить публикацию».";
-
-      } catch (error) {
-        if (error.message === "TIMEOUT") {
-          status.textContent =
-            "⚠️ VK не ответил на запуск приложения за 5 секунд.\n" +
-            "Устройство: " + platform;
-        } else {
-          status.textContent =
-            "⚠️ Ошибка запуска VK Mini App.\n" +
-            String(error);
-        }
-      }
-    }
-
-    checkButton.onclick = async function () {
-      const platform = getPlatformInfo();
-
-      status.textContent =
-        "Проверяю поддержку публикации...\n" +
-        "Устройство: " + platform;
-
-      try {
-        const supported = await withTimeout(
-          bridge.supportsAsync("VKWebAppShowWallPostBox"),
-          5000
-        );
-
-        if (supported) {
-          status.textContent =
-            "✅ Публикация поддерживается.\n" +
-            "Устройство: " + platform + "\n\n" +
-            "Пока ничего не опубликовано.";
-        } else {
-          status.textContent =
-            "❌ Публикация через VK Bridge не поддерживается.\n" +
-            "Устройство: " + platform;
-        }
-
-      } catch (error) {
-        if (error.message === "TIMEOUT") {
-          status.textContent =
-            "⚠️ VK не ответил на проверку за 5 секунд.\n" +
-            "Устройство: " + platform + "\n\n" +
-            "Приложение больше не будет висеть бесконечно.";
-        } else {
-          status.textContent =
-            "⚠️ Ошибка проверки.\n" +
-            "Устройство: " + platform + "\n\n" +
-            String(error);
-        }
-      }
-    };
-
-    init();
+    status.textContent = result;
   </script>
 </body>
 </html>
